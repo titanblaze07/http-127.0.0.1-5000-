@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Chatbot Game UI</title>
+
+<style>
+body{
+    margin:0;
+    height:100vh;
+    background:#0f2027;
+    overflow:hidden;
+    font-family:Arial,sans-serif;
+}
+
+/* BACKGROUND LAYER */
+#bg{
+    position:fixed;
+    inset:0;
+    z-index:1;
+    pointer-events:none;
+}
+
+/* CHATBOX */
+.chatbox{
+    position:fixed;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:420px;
+    padding:20px;
+    background:rgba(40,40,40,.92);
+    border-radius:18px;
+    color:white;
+    z-index:10;
+    box-shadow:0 0 50px rgba(0,0,0,.7);
+}
+
+.chatbox h2{
+    margin:0 0 10px;
+    text-align:center;
+    font-weight:600;
+}
+
+#msgs{
+    height:220px;
+    overflow-y:auto;
+    background:rgba(255,255,255,.08);
+    border-radius:12px;
+    padding:10px;
+}
+
+.msg.user{color:#4da3ff;text-align:right;margin:6px 0;}
+.msg.bot{color:#eee;margin:6px 0;}
+
+.controls{
+    display:flex;
+    gap:10px;
+    margin-top:12px;
+}
+
+#input{
+    flex:1;
+    padding:12px;
+    border-radius:10px;
+    border:2px solid #4da3ff;
+    background:#111;
+    color:white;
+}
+
+button{
+    padding:12px 18px;
+    border-radius:10px;
+    border:none;
+    background:#4da3ff;
+    color:white;
+    cursor:pointer;
+}
+
+/* SCORE */
+#counter{
+    position:fixed;
+    top:20px;
+    right:20px;
+    z-index:15;
+    background:rgba(0,0,0,.6);
+    padding:10px 16px;
+    border-radius:20px;
+    color:#ffd700;
+    font-weight:bold;
+}
+
+/* FALLING BASE */
+.fall{
+    position:fixed;
+    top:-40px;
+    z-index:5;
+    animation:fall linear forwards;
+    cursor:pointer;
+    pointer-events:auto;
+}
+
+@keyframes fall{
+    to{transform:translateY(110vh);}
+}
+
+/* STAR */
+.star{
+    width:26px;
+    height:26px;
+    background:gold;
+    clip-path:polygon(
+      50% 0%, 61% 35%, 98% 35%,
+      68% 57%, 79% 91%,
+      50% 70%, 21% 91%,
+      32% 57%, 2% 35%,
+      39% 35%
+    );
+}
+
+/* SNOW */
+.snow{
+    font-size:26px;
+    color:white;
+}
+
+/* BOMB */
+.bomb{
+    width:26px;
+    height:26px;
+    border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, #666, #000);
+    position:relative;
+}
+.bomb::after{
+    content:"";
+    position:absolute;
+    top:-18px;
+    left:9px;
+    width:8px;
+    height:18px;
+    background:linear-gradient(to top, orange, red, transparent);
+    filter:blur(1px);
+    animation:flicker .2s infinite alternate;
+}
+@keyframes flicker{
+    from{opacity:.6;}
+    to{opacity:1;}
+}
+
+/* FIRE BLAST */
+.fire{
+    position:fixed;
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    background:radial-gradient(circle, yellow, orange, red);
+    animation:explode .8s forwards;
+    pointer-events:none;
+    z-index:20;
+}
+@keyframes explode{
+    to{
+        transform:translate(var(--x),var(--y)) scale(2);
+        opacity:0;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div id="bg"></div>
+<div id="counter">⭐ <span id="count">0</span></div>
+
+<div class="chatbox">
+    <h2>Chatbot</h2>
+    <div id="msgs"></div>
+    <div class="controls">
+        <input id="input" placeholder="Type message">
+        <button onclick="sendMsg()">Send</button>
+    </div>
+</div>
+
+<script>
+let score=0;
+let freeze=false;
+
+const bg=document.getElementById("bg");
+const countEl=document.getElementById("count");
+
+/* SCORE */
+function updateScore(v){
+    score=Math.max(0,score+v);
+    countEl.innerText=score;
+}
+
+/* FIRE BLAST */
+function fireBlast(x,y){
+    for(let i=0;i<20;i++){
+        const f=document.createElement("div");
+        f.className="fire";
+        f.style.left=x+"px";
+        f.style.top=y+"px";
+        f.style.setProperty("--x",(Math.random()*200-100)+"px");
+        f.style.setProperty("--y",(Math.random()*200-100)+"px");
+        document.body.appendChild(f);
+        setTimeout(()=>f.remove(),800);
+    }
+}
+
+/* FREEZE */
+function freezeStars(sec){
+    freeze=true;
+    document.querySelectorAll(".star").forEach(s=>{
+        s.style.animationPlayState="paused";
+    });
+    setTimeout(()=>{
+        document.querySelectorAll(".star").forEach(s=>{
+            s.style.animationPlayState="running";
+        });
+        freeze=false;
+    },sec*1000);
+}
+
+/* STAR */
+function spawnStar(){
+    if(freeze) return;
+    const s=document.createElement("div");
+    s.className="fall star";
+    s.style.left=Math.random()*100+"vw";
+    s.style.animationDuration="8s";
+
+    s.onclick=e=>{
+        updateScore(1);
+        fireBlast(e.clientX,e.clientY);
+        s.remove();
+    };
+
+    s.onanimationend=()=>s.remove();
+    document.body.appendChild(s);
+}
+
+/* SNOW */
+function spawnSnow(){
+    const s=document.createElement("div");
+    s.className="fall snow";
+    s.innerText="❄";
+    s.style.left=Math.random()*100+"vw";
+    s.style.animationDuration="10s";
+
+    s.onclick=e=>{
+        freezeStars(10);
+        fireBlast(e.clientX,e.clientY);
+        s.remove();
+    };
+
+    s.onanimationend=()=>s.remove();
+    document.body.appendChild(s);
+}
+
+/* BOMB */
+function spawnBomb(){
+    const b=document.createElement("div");
+    b.className="fall bomb";
+    b.style.left=Math.random()*100+"vw";
+    b.style.animationDuration="9s";
+
+    b.onclick=e=>{
+        updateScore(-50);
+        document.querySelectorAll(".star").forEach(s=>{
+            const r=s.getBoundingClientRect();
+            fireBlast(r.x,r.y);
+            s.remove();
+        });
+        fireBlast(e.clientX,e.clientY);
+        b.remove();
+    };
+
+    b.onanimationend=()=>b.remove();
+    document.body.appendChild(b);
+}
+
+/* CHAT */
+function sendMsg(){
+    const i=document.getElementById("input");
+    if(!i.value.trim()) return;
+    const d=document.createElement("div");
+    d.className="msg user";
+    d.innerText=i.value;
+    document.getElementById("msgs").appendChild(d);
+    i.value="";
+}
+
+/* LOOPS */
+setInterval(()=>{spawnStar();spawnStar();},1000); // 2 stars / sec
+setInterval(spawnSnow,10000);                     // snow
+setInterval(spawnBomb,15000);                     // bomb
+</script>
+
+</body>
+</html>
