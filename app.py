@@ -3,7 +3,8 @@ import requests
 
 app = Flask(__name__)
 
-GOOGLE_API_KEY = "AIzaSyDVsn6OR5gYxmVyvK-kLih2f_soHW5PjhY"
+import os
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 @app.route("/")
 def home():
